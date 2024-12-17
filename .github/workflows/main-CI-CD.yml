@@ -48,14 +48,18 @@ jobs:
         key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
         port: 22
         script: |
+          DOCKER_IMAGE=${{ env.DOCKER_IMAGE }}
+          CONTAINER_NAME=${{ env.CONTAINER_NAME }}
+          PORT=${{ env.PORT }}
+
           echo "DOCKER_IMAGE: $DOCKER_IMAGE"
           echo "CONTAINER_NAME: $CONTAINER_NAME"
           echo "PORT: $PORT"
-
+          
           if [ -z "$DOCKER_IMAGE" ]; then echo "DOCKER_IMAGE is empty!"; exit 1; fi
           if [ -z "$CONTAINER_NAME" ]; then echo "CONTAINER_NAME is empty!"; exit 1; fi
           if [ -z "$PORT" ]; then echo "PORT is empty!"; exit 1; fi
-
+    
           docker pull $DOCKER_IMAGE
           docker stop $CONTAINER_NAME || true
           docker rm $CONTAINER_NAME || true
