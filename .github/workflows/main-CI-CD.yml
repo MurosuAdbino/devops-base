@@ -34,9 +34,9 @@ jobs:
         docker build -t registry.digitalocean.com/imgreg-m101/webfe-simple:latest .
 
     # 6. Log in to DigitalOcean Container Registry
-    - name: Log in to DigitalOcean Container Registry
+    - name: Docker login to DigitalOcean Registry
       run: |
-        echo "${{ secrets.PRODSM101_REGISTRY_DO }}" > ~/.docker/config.json
+        echo "${{ secrets.REGISTRYDO_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.REGISTRYDO_USERNAME }}" --password-stdin
 
     # 7. Push Docker image to DigitalOcean Registry
     - name: Push Docker image
