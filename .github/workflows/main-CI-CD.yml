@@ -21,7 +21,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: 16
+        node-version: 22
 
     - name: Install dependencies
       run: npm install
@@ -55,7 +55,7 @@ jobs:
           echo "DOCKER_IMAGE: $DOCKER_IMAGE"
           echo "CONTAINER_NAME: $CONTAINER_NAME"
           echo "PORT: $PORT"
-          
+
           if [ -z "$DOCKER_IMAGE" ]; then echo "DOCKER_IMAGE is empty!"; exit 1; fi
           if [ -z "$CONTAINER_NAME" ]; then echo "CONTAINER_NAME is empty!"; exit 1; fi
           if [ -z "$PORT" ]; then echo "PORT is empty!"; exit 1; fi
