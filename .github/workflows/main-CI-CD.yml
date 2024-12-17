@@ -1,4 +1,4 @@
-name: RUNNER M101 CI/CD with Docker on DigitalOcean Registry
+name: RUNNER M101 CI/CD with Docker on DigitalOcean Registry Tags Urandom
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  DOCKER_IMAGE: registry.digitalocean.com/imgreg-m101/webfe-simple:latest
+  IMAGE_NAME: registry.digitalocean.com/imgreg-m101/webfe-simple
   CONTAINER_NAME: webfe-simple
   PORT: 4000
 
@@ -29,16 +29,28 @@ jobs:
     - name: Run tests
       run: npm test
 
+    - name: Generate Docker Image Tag
+      id: tag
+      run: |
+        # Generate format: DDMMYY-4char
+        DATE=$(date +'%d%m%y')
+        RANDOM_ID=$(head /dev/urandom | tr -dc a-z0-9 | head -c 4)
+        TAG="${DATE}-${RANDOM_ID}"
+        echo "Generated Tag: $TAG"
+        echo "DOCKER_IMAGE_TAG=$TAG" >> $GITHUB_ENV
+
     - name: Build Docker image
       run: |
-        docker build -t $DOCKER_IMAGE .
+        docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{ env.DOCKER_IMAGE_TAG }} .
 
     - name: Docker login to DigitalOcean Registry
       run: |
         echo "${{ secrets.REGISTRYDO_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.REGISTRYDO_USERNAME }}" --password-stdin
 
     - name: Push Docker image
-      run: docker push $DOCKER_IMAGE
+      run: |
+        docker push $IMAGE_NAME:latest
+        docker push $IMAGE_NAME:${{ env.DOCKER_IMAGE_TAG }}
 
     - name: Deploy via SSH
       uses: appleboy/ssh-action@master
@@ -48,19 +60,13 @@ jobs:
         key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
         port: 22
         script: |
-          DOCKER_IMAGE=${{ env.DOCKER_IMAGE }}
+          IMAGE_NAME=${{ env.IMAGE_NAME }}
+          IMAGE_TAG=${{ env.DOCKER_IMAGE_TAG }}
           CONTAINER_NAME=${{ env.CONTAINER_NAME }}
           PORT=${{ env.PORT }}
 
-          echo "DOCKER_IMAGE: $DOCKER_IMAGE"
-          echo "CONTAINER_NAME: $CONTAINER_NAME"
-          echo "PORT: $PORT"
-
-          if [ -z "$DOCKER_IMAGE" ]; then echo "DOCKER_IMAGE is empty!"; exit 1; fi
-          if [ -z "$CONTAINER_NAME" ]; then echo "CONTAINER_NAME is empty!"; exit 1; fi
-          if [ -z "$PORT" ]; then echo "PORT is empty!"; exit 1; fi
-    
-          docker pull $DOCKER_IMAGE
+          echo "Pulling Docker image with tag: $IMAGE_TAG"
+          docker pull $IMAGE_NAME:$IMAGE_TAG
           docker stop $CONTAINER_NAME || true
           docker rm $CONTAINER_NAME || true
-          docker run -d --name $CONTAINER_NAME -p $PORT:$PORT --restart always $DOCKER_IMAGE
+          docker run -d --name $CONTAINER_NAME -p $PORT:$PORT --restart always $IMAGE_NAME:$IMAGE_TAG
