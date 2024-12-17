@@ -1,0 +1,57 @@
+name: CI/CD with Docker on DigitalOcean Registry
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Checkout repository
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    # 2. Set up Node.js environment
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16 # Sesuaikan dengan versi Node.js
+
+    # 3. Install dependencies
+    - name: Install dependencies
+      run: npm install
+
+    # 4. Run tests (opsional)
+    - name: Run tests
+      run: npm test
+
+    # 5. Build Docker image
+    - name: Build Docker image
+      run: |
+        docker build -t registry.digitalocean.com/imgreg-m101/webfe-simple:latest .
+
+    # 6. Log in to DigitalOcean Container Registry
+    - name: Log in to DigitalOcean Container Registry
+      run: |
+        echo "${{ secrets.PRODSM101_REGISTRY_DO }}" | base64 -d > ~/.docker/config.json
+
+    # 7. Push Docker image to DigitalOcean Registry
+    - name: Push Docker image
+      run: docker push registry.digitalocean.com/imgreg-m101/webfe-simple:latest
+
+    # 8. Deploy application via SSH
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.PRODSM101_HOST }}
+        username: ${{ secrets.PRODSM101_USERNAME }}
+        key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
+        port: 22
+        script: |
+          docker pull registry.digitalocean.com/imgreg-m101/webfe-simple:latest
+          docker stop your-app-container || true
+          docker rm your-app-container || true
+          docker run -d --name webfe-simple -p 4000:4000 --restart always registry.digitalocean.com/imgreg-m101/webfe-simple:latest
