@@ -5,6 +5,11 @@ on:
     branches:
       - main
 
+env:
+  DOCKER_IMAGE: registry.digitalocean.com/imgreg-m101/webfe-simple:latest
+  CONTAINER_NAME: webfe-simple
+  PORT: 4000
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -31,7 +36,7 @@ jobs:
     # 5. Build Docker image
     - name: Build Docker image
       run: |
-        docker build -t registry.digitalocean.com/imgreg-m101/webfe-simple:latest .
+        docker build -t $DOCKER_IMAGE .
 
     # 6. Log in to DigitalOcean Container Registry
     - name: Docker login to DigitalOcean Registry
@@ -40,8 +45,8 @@ jobs:
 
     # 7. Push Docker image to DigitalOcean Registry
     - name: Push Docker image
-      run: docker push registry.digitalocean.com/imgreg-m101/webfe-simple:latest
-
+      run: docker push $DOCKER_IMAGE
+    
     # 8. Deploy application via SSH
     - name: Deploy via SSH
       uses: appleboy/ssh-action@master
@@ -51,7 +56,7 @@ jobs:
         key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
         port: 22
         script: |
-          docker pull registry.digitalocean.com/imgreg-m101/webfe-simple:latest
-          docker stop your-app-container || true
-          docker rm your-app-container || true
-          docker run -d --name webfe-simple -p 4000:4000 --restart always registry.digitalocean.com/imgreg-m101/webfe-simple:latest
+          docker pull $DOCKER_IMAGE
+          docker stop $CONTAINER_NAME || true
+          docker rm $CONTAINER_NAME || true
+          docker run -d --name $CONTAINER_NAME -p $PORT:$PORT --restart always $DOCKER_IMAGE
