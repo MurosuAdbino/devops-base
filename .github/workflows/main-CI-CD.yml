@@ -36,6 +36,7 @@ jobs:
         DATE=$(date +'%d%m%y')
         RANDOM_ID=$(head /dev/urandom | tr -dc a-z0-9 | head -c 4)
         TAG="${DATE}-${RANDOM_ID}"
+        # TAG="latest"
         echo "Generated Tag: $TAG"
         echo "DOCKER_IMAGE_TAG=$TAG" >> $GITHUB_ENV
 
