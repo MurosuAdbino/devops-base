@@ -1,4 +1,4 @@
-name: RUNNER M101 CI/CD with Docker on DigitalOcean Registry Tags Urandom
+name: RUNNER M101 CI/CD with Docker on DigitalOcean Registry uniq Tags 
 
 on:
   push:
@@ -8,7 +8,8 @@ on:
 env:
   IMAGE_NAME: registry.digitalocean.com/imgreg-m101/webfe-simple
   CONTAINER_NAME: webfe-simple
-  PORT: 4000
+  PORT: 80
+  PORT_CONTAINER : 4000
 
 jobs:
   build-and-deploy:
@@ -36,7 +37,6 @@ jobs:
         DATE=$(date +'%d%m%y')
         RANDOM_ID=$(head /dev/urandom | tr -dc a-z0-9 | head -c 4)
         TAG="${DATE}-${RANDOM_ID}"
-        # TAG="latest"
         echo "Generated Tag: $TAG"
         echo "DOCKER_IMAGE_TAG=$TAG" >> $GITHUB_ENV
 
@@ -65,9 +65,10 @@ jobs:
           IMAGE_TAG=${{ env.DOCKER_IMAGE_TAG }}
           CONTAINER_NAME=${{ env.CONTAINER_NAME }}
           PORT=${{ env.PORT }}
+          PORT_CONTAINER=${{ env.PORT_CONTAINER }}
 
           echo "Pulling Docker image with tag: $IMAGE_TAG"
           docker pull $IMAGE_NAME:$IMAGE_TAG
           docker stop $CONTAINER_NAME || true
           docker rm $CONTAINER_NAME || true
-          docker run -d --name $CONTAINER_NAME -p $PORT:$PORT --restart always $IMAGE_NAME:$IMAGE_TAG
+          docker run -d --name $CONTAINER_NAME -p $PORT:$PORT_CONTAINER --restart always $IMAGE_NAME:$IMAGE_TAG
