@@ -1,0 +1,183 @@
+name: RUNNER test-web-account-console CI/CD with Docker on Registry uniq Tags 
+
+# on:
+#   push:
+#     branches:
+#       - main
+      
+# RELEASE:Published Trigger 
+on:
+  release:
+    types: [published]
+
+env:
+  IMAGE_NAME: registry.digitalocean.com/imgreg-m101/test-web-account-console
+  CONTAINER_NAME: test-web-account-console
+  PORT: 7201
+  PORT_CONTAINER : 7201
+
+jobs:
+  # CI Phase: Build and Test
+  build-and-test:
+    name: CI-phase-BuildTest
+    runs-on: ubuntu-latest
+    outputs:
+      docker_tag: ${{ steps.tag.outputs.docker_tag }}  # Pass tag to next job
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Generate & Copy .env 
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.PRODSM101_HOST }}
+        username: ${{ secrets.PRODSM101_USERNAME }}
+        key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
+        port: ${{ secrets.PRODSM101_PORT_SSH }}
+        source: "/opt/artitact-prod-m101/Store/env_account"
+        target: "./.env"
+
+    - name: Verify .env file
+      run: |
+        ls -ltrh
+        cat .env  # Opsional: Untuk memverifikasi isi file .env
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 22
+        
+    - name: Set environment variables test-web-account-console
+      run: |
+        rm -f .env*
+        cp /opt/artitact-prod-m101/Store/.env_account .env
+        cat .env  # Untuk verifikasi (opsional)
+    
+    - name: Copy .env to .env.local
+      run: cp .env .env.local
+
+    - name: Install dependencies
+      run: yarn install
+
+    - name: Run Linter
+      run: yarn lint
+
+    - name: Build project
+      run: yarn build
+
+    - name: Generate Docker Image Tag
+      id: tag
+      run: |
+        # Generate format: DDMMYY-4char
+        DATE=$(date +'%d%m%y')
+        RANDOM_ID=$(head /dev/urandom | tr -dc a-z0-9 | head -c 4)
+        TAG="${DATE}-${RANDOM_ID}"
+        echo "Generated Tag: $TAG"
+        echo "DOCKER_IMAGE_TAG=$TAG" >> $GITHUB_ENV
+        echo "docker_tag=$TAG" >> $GITHUB_OUTPUT  # Replace set-output
+        echo "::set-output name=docker_tag::$TAG"  # Set output for passing
+
+    - name: Build Docker image
+      run: |
+        docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{ env.DOCKER_IMAGE_TAG }} .
+
+    - name: Docker login to DigitalOcean Registry
+      run: |
+        echo "${{ secrets.REGISTRYDO_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.REGISTRYDO_USERNAME }}" --password-stdin
+
+    - name: Push Docker image
+      run: |
+        docker push $IMAGE_NAME:latest
+        docker push $IMAGE_NAME:${{ env.DOCKER_IMAGE_TAG }}
+
+  # CD Phase: Deployment
+  delivery-and-deploy:
+    name: CD-phase-Deployment
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    env:
+      IMAGE_TAG: ${{ needs.build-and-test.outputs.docker_tag }}  # Use output from previous job
+
+    steps:
+    - name: Deploy Container 
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.PRODSM101_HOST }}
+        username: ${{ secrets.PRODSM101_USERNAME }}
+        key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
+        port: ${{ secrets.PRODSM101_PORT_SSH }}
+        script: |
+          IMAGE_NAME=${{ env.IMAGE_NAME }}
+          IMAGE_TAG=${{ env.IMAGE_TAG }}
+          CONTAINER_NAME=${{ env.CONTAINER_NAME }}
+          PORT=${{ env.PORT }}
+          PORT_CONTAINER=${{ env.PORT_CONTAINER }}
+
+          echo "Checking if container $CONTAINER_NAME exists..."
+          if docker ps -a --filter "name=$CONTAINER_NAME" | grep $CONTAINER_NAME; then
+            echo "Stopping and removing existing container $CONTAINER_NAME..."
+            docker stop $CONTAINER_NAME || true
+            docker rm -f $CONTAINER_NAME || true
+          else
+            echo "No existing container found. Proceeding with deployment..."
+          fi
+
+          # Pull Image (Fallback ke 'latest' jika tag kosong)
+          if [ -z "$IMAGE_TAG" ]; then
+            echo "⚠️ IMAGE_TAG is empty. Fallback to 'latest'."
+            IMAGE_TAG="latest"
+          fi
+
+          echo "Pulling Docker image: $IMAGE_NAME:$IMAGE_TAG"
+          docker pull $IMAGE_NAME:$IMAGE_TAG || {
+            echo "❌ Failed to pull $IMAGE_NAME:$IMAGE_TAG"            
+          }
+
+          # Run New Container
+          echo "Running new container..."
+          docker run -d --name $CONTAINER_NAME -p $PORT:$PORT_CONTAINER --restart always $IMAGE_NAME:$IMAGE_TAG || {
+            echo "❌ Failed to start container $CONTAINER_NAME. Retrying with unique name..."
+            
+            RANDOM_ID=$(head /dev/urandom | tr -dc a-z0-9 | head -c 6)
+            NEW_CONTAINER_NAME="${CONTAINER_NAME}-${RANDOM_ID}"
+            
+            echo "Running container with name: $NEW_CONTAINER_NAME"
+            docker run -d --name $NEW_CONTAINER_NAME -p $PORT:$PORT_CONTAINER --restart always $IMAGE_NAME:$IMAGE_TAG || {
+              echo "❌ Failed to start container $NEW_CONTAINER_NAME"              
+            }
+          }
+
+          # Validate Container Status
+          echo "Validating container is running..."
+          sleep 15
+          if docker ps --filter "name=$CONTAINER_NAME" --filter "status=running" | grep -q $CONTAINER_NAME; then
+            echo "✅ Container $CONTAINER_NAME is running successfully."
+          else
+            echo "⚠️ Container $CONTAINER_NAME might be replaced by $NEW_CONTAINER_NAME"
+            if docker ps --filter "name=$NEW_CONTAINER_NAME" --filter "status=running" | grep -q $NEW_CONTAINER_NAME; then
+              echo "✅ $NEW_CONTAINER_NAME is running."
+            else
+              echo "❌ Deployment failed. No running containers found."
+            fi
+          fi
+
+          # Health Check Container (local)
+          echo "🔄 Checking if port $PORT is open on localhost..."
+          if nc -zv localhost $PORT; then
+            echo "✅ Local port $PORT is open."
+          else
+            echo "❌ Local port $PORT is closed. Health check failed."
+          fi
+
+    - name: Health Check Container (Remote)
+      run: |
+        echo "🔄 Checking if port $PORT is open on remote host ${{ secrets.PRODSM101_HOST }}..."
+        if nc -zv ${{ secrets.PRODSM101_HOST }} $PORT; then
+          echo "✅ Remote port $PORT is open."
+        else
+          echo "❌ Remote port $PORT is closed. Health check failed."
+        fi
