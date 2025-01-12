@@ -1,79 +1,79 @@
-name: RUNNER M101 CI/CD with Docker on DigitalOcean Registry uniq Tags 
+# name: RUNNER M101 CI/CD with Docker on DigitalOcean Registry uniq Tags 
 
+# # on:
+# #   push:
+# #     branches:
+# #       - main
+
+# #RELEASE Publish
 # on:
-#   push:
-#     branches:
-#       - main
-
-#RELEASE Publish
-on:
-  release:
-    types: [published]
+#   release:
+#     types: [published]
     
-env:
-  IMAGE_NAME: registry.digitalocean.com/imgreg-m101/webfe-simple
-  CONTAINER_NAME: webfe-simple
-  PORT: 80
-  PORT_CONTAINER : 4000
+# env:
+#   IMAGE_NAME: registry.digitalocean.com/imgreg-m101/webfe-simple
+#   CONTAINER_NAME: webfe-simple
+#   PORT: 80
+#   PORT_CONTAINER : 4000
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+# jobs:
+#   build-and-deploy:
+#     runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v2
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 22
+#     - name: Set up Node.js
+#       uses: actions/setup-node@v3
+#       with:
+#         node-version: 22
 
-    - name: Install dependencies
-      run: npm install
+#     - name: Install dependencies
+#       run: npm install
 
-    - name: Run tests
-      run: npm test
+#     - name: Run tests
+#       run: npm test
 
-    - name: Generate Docker Image Tag
-      id: tag
-      run: |
-        # Generate format: DDMMYY-4char
-        DATE=$(date +'%d%m%y')
-        RANDOM_ID=$(head /dev/urandom | tr -dc a-z0-9 | head -c 4)
-        TAG="${DATE}-${RANDOM_ID}"
-        echo "Generated Tag: $TAG"
-        echo "DOCKER_IMAGE_TAG=$TAG" >> $GITHUB_ENV
+#     - name: Generate Docker Image Tag
+#       id: tag
+#       run: |
+#         # Generate format: DDMMYY-4char
+#         DATE=$(date +'%d%m%y')
+#         RANDOM_ID=$(head /dev/urandom | tr -dc a-z0-9 | head -c 4)
+#         TAG="${DATE}-${RANDOM_ID}"
+#         echo "Generated Tag: $TAG"
+#         echo "DOCKER_IMAGE_TAG=$TAG" >> $GITHUB_ENV
 
-    - name: Build Docker image
-      run: |
-        docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{ env.DOCKER_IMAGE_TAG }} .
+#     - name: Build Docker image
+#       run: |
+#         docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{ env.DOCKER_IMAGE_TAG }} .
 
-    - name: Docker login to DigitalOcean Registry
-      run: |
-        echo "${{ secrets.REGISTRYDO_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.REGISTRYDO_USERNAME }}" --password-stdin
+#     - name: Docker login to DigitalOcean Registry
+#       run: |
+#         echo "${{ secrets.REGISTRYDO_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.REGISTRYDO_USERNAME }}" --password-stdin
 
-    - name: Push Docker image
-      run: |
-        docker push $IMAGE_NAME:latest
-        docker push $IMAGE_NAME:${{ env.DOCKER_IMAGE_TAG }}
+#     - name: Push Docker image
+#       run: |
+#         docker push $IMAGE_NAME:latest
+#         docker push $IMAGE_NAME:${{ env.DOCKER_IMAGE_TAG }}
 
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.PRODSM101_HOST }}
-        username: ${{ secrets.PRODSM101_USERNAME }}
-        key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
-        port: 22
-        script: |
-          IMAGE_NAME=${{ env.IMAGE_NAME }}
-          IMAGE_TAG=${{ env.DOCKER_IMAGE_TAG }}
-          CONTAINER_NAME=${{ env.CONTAINER_NAME }}
-          PORT=${{ env.PORT }}
-          PORT_CONTAINER=${{ env.PORT_CONTAINER }}
+#     - name: Deploy via SSH
+#       uses: appleboy/ssh-action@master
+#       with:
+#         host: ${{ secrets.PRODSM101_HOST }}
+#         username: ${{ secrets.PRODSM101_USERNAME }}
+#         key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
+#         port: 22
+#         script: |
+#           IMAGE_NAME=${{ env.IMAGE_NAME }}
+#           IMAGE_TAG=${{ env.DOCKER_IMAGE_TAG }}
+#           CONTAINER_NAME=${{ env.CONTAINER_NAME }}
+#           PORT=${{ env.PORT }}
+#           PORT_CONTAINER=${{ env.PORT_CONTAINER }}
 
-          echo "Pulling Docker image with tag: $IMAGE_TAG"
-          docker pull $IMAGE_NAME:$IMAGE_TAG
-          docker stop $CONTAINER_NAME || true
-          docker rm $CONTAINER_NAME || true
-          docker run -d --name $CONTAINER_NAME -p $PORT:$PORT_CONTAINER --restart always $IMAGE_NAME:$IMAGE_TAG
+#           echo "Pulling Docker image with tag: $IMAGE_TAG"
+#           docker pull $IMAGE_NAME:$IMAGE_TAG
+#           docker stop $CONTAINER_NAME || true
+#           docker rm $CONTAINER_NAME || true
+#           docker run -d --name $CONTAINER_NAME -p $PORT:$PORT_CONTAINER --restart always $IMAGE_NAME:$IMAGE_TAG
