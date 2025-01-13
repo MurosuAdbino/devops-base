@@ -117,15 +117,6 @@ jobs:
           PORT=${{ env.PORT }}
           PORT_CONTAINER=${{ env.PORT_CONTAINER }}
 
-          echo "Checking if container $CONTAINER_NAME exists..."
-          if docker ps -a --filter "name=$CONTAINER_NAME" | grep $CONTAINER_NAME; then
-            echo "Stopping and removing existing container $CONTAINER_NAME..."
-            docker stop $CONTAINER_NAME || true
-            docker rm -f $CONTAINER_NAME || true
-          else
-            echo "No existing container found. Proceeding with deployment..."
-          fi
-
           # Pull Image (Fallback ke 'latest' jika tag kosong)
           if [ -z "$IMAGE_TAG" ]; then
             echo "⚠️ IMAGE_TAG is empty. Fallback to 'latest'."
@@ -136,6 +127,15 @@ jobs:
           docker pull $IMAGE_NAME:$IMAGE_TAG || {
             echo "❌ Failed to pull $IMAGE_NAME:$IMAGE_TAG"            
           }
+          
+          echo "Checking if container $CONTAINER_NAME exists..."
+          if docker ps -a --filter "name=$CONTAINER_NAME" | grep $CONTAINER_NAME; then
+            echo "Stopping and removing existing container $CONTAINER_NAME..."
+            docker stop $CONTAINER_NAME || true
+            docker rm -f $CONTAINER_NAME || true
+          else
+            echo "No existing container found. Proceeding with deployment..."
+          fi
 
           # Run New Container
           echo "Running new container..."
