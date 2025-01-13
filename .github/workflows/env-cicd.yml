@@ -37,7 +37,7 @@ jobs:
         key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
         port: ${{ secrets.PRODSM101_PORT_SSH }}
         script: |
-          cat /opt/artitact-prod-m101/Store/env_account | base64
+          cat /opt/artitact-prod-m101/Store/.env_account | base64
           
       # Save the Base64 output as an environment variable
       continue-on-error: false  # Ensure this step fails if the SSH command fails
