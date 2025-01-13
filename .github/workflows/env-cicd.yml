@@ -28,37 +28,21 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: SSH to fetch env_account
-      id: fetch-env
-      uses: appleboy/ssh-action@master
+    - name: Generate & Copy .env 
+      uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.PRODSM101_HOST }}
         username: ${{ secrets.PRODSM101_USERNAME }}
         key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
         port: ${{ secrets.PRODSM101_PORT_SSH }}
-        script: |
-          cat /opt/artitact-prod-m101/Store/.env_account | base64
-      # Output stdout as a custom output variable
-      continue-on-error: false  # Ensure this step fails if the SSH command fails
+        source: "/opt/artitact-prod-m101/Store/env_account/*"
+        target: "./*"
 
-    - name: Debug fetch-env output
+    - name: Verify .env file
       run: |
-        echo "Output from fetch-env:"
-        echo "${{ steps.fetch-env.outputs.stdout }}"
-        if [ -z "${{ steps.fetch-env.outputs.stdout }}" ]; then
-          echo "Error: Output from fetch-env is empty."
-          exit 1
-        fi
-
-    - name: Set environment variable for fetched base64 data
-      run: |
-        echo "ENV64_FILES=${{ steps.fetch-env.outputs.stdout }}" >> $GITHUB_ENV
-
-    - name: Decode Base64 environment file
-      run: |
-        echo "$ENV64_FILES" | base64 --decode > .env
-        cat .env  # Optional: Check the content of the .env file for debugging
-
+        ls -ltrh
+        pwd
+        cat .env  # Opsional: Untuk memverifikasi isi file .env
         
     - name: Copy .env to .env.local
       run: cp .env .env.local
