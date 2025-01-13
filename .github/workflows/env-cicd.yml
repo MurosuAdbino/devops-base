@@ -35,7 +35,7 @@ jobs:
         username: ${{ secrets.PRODSM101_USERNAME }}
         key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
         port: ${{ secrets.PRODSM101_PORT_SSH }}
-        source: "/opt/artitact-prod-m101/Store/env_account"
+        source: "/opt/artitact-prod-m101/Store/.env_account"
         target: "./.env"
 
     - name: Verify .env file
