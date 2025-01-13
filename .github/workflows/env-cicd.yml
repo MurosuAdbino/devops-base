@@ -30,6 +30,7 @@ jobs:
 
     - name: Create SSH key file from secret
       run: |
+        mkdir -p /home/runner/.ssh  # Make sure the ~/.ssh directory exists
         echo "${{ secrets.PRODSM101_PRIVATE_KEY }}" > /home/runner/.ssh/id_rsa
         chmod 600 /home/runner/.ssh/id_rsa  # Set permissions for the key
           
