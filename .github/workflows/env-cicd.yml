@@ -30,13 +30,13 @@ jobs:
 
     - name: Create SSH key file from secret
       run: |
-        echo "${{ secrets.PRODSM101_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa  # Set permissions for the key
+        echo "${{ secrets.PRODSM101_PRIVATE_KEY }}" > /home/runner/.ssh/id_rsa
+        chmod 600 /home/runner/.ssh/id_rsa  # Set permissions for the key
           
     - name: Fetch env_account file as base64
       run: |
         echo "Fetching env_account from remote server..."
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.PRODSM101_USERNAME }}@${{ secrets.PRODSM101_HOST }} -p ${{ secrets.PRODSM101_PORT_SSH }} \
+        ssh -o StrictHostKeyChecking=no -i /home/runner/.ssh/id_rsa ${{ secrets.PRODSM101_USERNAME }}@${{ secrets.PRODSM101_HOST }} -p ${{ secrets.PRODSM101_PORT_SSH }} \
           "cat /opt/artitact-prod-m101/Store/.env_account | base64" > ENV64
 
         echo "Fetched base64 encoded file:"
