@@ -1,14 +1,14 @@
 name: RUNNER test-web-account-console CI/CD with Docker on Registry uniq Tags 
 
-# on:
-#   push:
-#     branches:
-#       - main
+on:
+  push:
+    branches:
+      - main
       
 # RELEASE:Published Trigger 
-on:
-  release:
-    types: [published]
+# on:
+#   release:
+#     types: [published]
 
 env:
   IMAGE_NAME: registry.digitalocean.com/imgreg-m101/test-web-account-console
@@ -28,20 +28,27 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Generate & Copy .env 
-      uses: appleboy/scp-action@v0.1.7
+    - name: SSH to fetch env_account
+      id: fetch-env
+      uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.PRODSM101_HOST }}
         username: ${{ secrets.PRODSM101_USERNAME }}
         key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
         port: ${{ secrets.PRODSM101_PORT_SSH }}
         script: |
-              scp /opt/artitact-prod-m101/Store/env_account $GITHUB_WORKSPACE/.env
+          cat /opt/artitact-prod-m101/Store/.env_account
 
-    - name: Verify .env file
+    - name: Create & Verify .env file
       run: |
+        echo "${{ steps.fetch-env.outputs.stdout }}" > .env
         ls -ltrh
-        cat .env  # Opsional: Untuk memverifikasi isi file .env
+        cat .env  # Optional: Check the content of the .env file for debugging
+        
+    # - name: Verify .env file
+    #   run: |
+    #     ls -ltrh
+    #     cat .env  # Opsional: Untuk memverifikasi isi file .env
 
     - name: Checkout code
       uses: actions/checkout@v2
@@ -50,12 +57,6 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: 22
-        
-    - name: Set environment variables test-web-account-console
-      run: |
-        rm -f .env*
-        cp /opt/artitact-prod-m101/Store/.env_account .env
-        cat .env  # Untuk verifikasi (opsional)
     
     - name: Copy .env to .env.local
       run: cp .env .env.local
