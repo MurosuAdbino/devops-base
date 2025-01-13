@@ -38,10 +38,15 @@ jobs:
         port: ${{ secrets.PRODSM101_PORT_SSH }}
         script: |
           cat /opt/artitact-prod-m101/Store/env_account | base64
+          
+      # Save the Base64 output as an environment variable
+      continue-on-error: false  # Ensure this step fails if the SSH command fails
+      env:
+        ENV64_FILES: ${{ steps.fetch-env.outputs.stdout }}
 
-    - name: Decode and create .env file
+    - name: Decode Base64 environment file
       run: |
-        echo "${{ steps.fetch-env.outputs.stdout }}" | base64 --decode > .env
+        echo "$ENV64_FILES" | base64 --decode > .env
         cat .env  # Optional: Check the content of the .env file for debugging
         
     - name: Copy .env to .env.local
