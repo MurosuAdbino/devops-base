@@ -52,6 +52,11 @@ jobs:
     - name: Copy .env to .env.local
       run: cp .env .env.local
 
+    - name: Decode Base64 environment file
+      run: |
+        cat .env  # Optional: Check the content of the .env file for debugging
+        cat .env.local
+        
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
