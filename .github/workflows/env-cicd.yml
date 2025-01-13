@@ -37,29 +37,20 @@ jobs:
         key: ${{ secrets.PRODSM101_PRIVATE_KEY }}
         port: ${{ secrets.PRODSM101_PORT_SSH }}
         script: |
-          cat /opt/artitact-prod-m101/Store/.env_account
+          cat /opt/artitact-prod-m101/Store/env_account | base64
 
-    - name: Create & Verify .env file
+    - name: Decode and create .env file
       run: |
-        echo "${{ steps.fetch-env.outputs.stdout }}" > .env
-        ls -ltrh
+        echo "${{ steps.fetch-env.outputs.stdout }}" | base64 --decode > .env
         cat .env  # Optional: Check the content of the .env file for debugging
         
-    # - name: Verify .env file
-    #   run: |
-    #     ls -ltrh
-    #     cat .env  # Opsional: Untuk memverifikasi isi file .env
-
-    - name: Checkout code
-      uses: actions/checkout@v2
+    - name: Copy .env to .env.local
+      run: cp .env .env.local
 
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
         node-version: 22
-    
-    - name: Copy .env to .env.local
-      run: cp .env .env.local
 
     - name: Install dependencies
       run: yarn install
